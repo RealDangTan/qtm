@@ -23,7 +23,7 @@
 		- NetworkView: ping liên tục để xem who die
 		- STP: phát hiện loop ➰ bằng cách gửi các gói BPDU và changes mỗi khi thay đổi
 - Mô hình nền tảng:
-	- Thực thể quản trị: 
+	- Thực thể quản trị: manager
 	- Entity đc qtri: user 
 ## SNMP
 - Lịch sử:
@@ -38,12 +38,34 @@
 - Chạy trên nền và quản lý các thiết bị TCP/IP (ví dụ đk máy giặt, ... = SNMP) 
 - Có khả năng shutdown các port trên switch
 - **Object ID (OID):** là 1 dãy mã nhận dạng object đó, truy xuất được thông tin của object (PC - RAM, CPU, OS, port, byte/s, name, process, .... Router - cards, ports, byte/s, name, port status, ...) (VD 1.3.6.1.2.1.2.1)
-	- Scalar instance index (sub-id): là OID đính thêm để xác định máy (trong TH nhiều máy giống nhau, vd sysName.0 và sysName.1)
+	- **Scalar instance index (sub-id):** là OID đính thêm để xác định máy (trong TH nhiều máy giống nhau, vd sysName.0 và sysName.1)
 	- Dùng từ điển từ đó dò ra đc sysName/ifPhysAddress/.... có nghĩa là gì
 - Sử dụng kiến trúc phân tán gồm các hệ quản trị (management system) và các tác nhân (Agent)
 - Máy chủ center chạy các phần mềm là NMS, các Node mạng là SNMP Agent
 ## SNMP infrastructure
-- MIB (Management Info Base): Cơ sở thông tin quản lý, object chứa info các object khác (phiên hoạt động, số MB còn trống)![](attachment/8600cdc3cedba0bc4e5124ea34a99170.jpg)
+- PDU (Protocol Data Unit): đơn vị data được truyền qua giữa manager và các agent
+- **Object Access:** Object SNMP có quyền `READ_ONLY` (chỉ đọc) hoặc `READ_WRITE` (đọc + ghi). Chỉ object `READ_WRITE` mới thay đổi được giá trị.
+- MIB (Management Info Base): Cơ sở thông tin quản lý, object chứa info các object khác (phiên hoạt động, số MB còn trống), quản lý các thiết bị chạy TCP/IP gồm các thuộc tính: tên và mã số, data type, description object![](attachment/8600cdc3cedba0bc4e5124ea34a99170.jpg)![](attachment/cb22cffe05321e6834d48f66e4afcf33.png)![](attachment/dbfa80bff3833908e9dfb279bb3e6172.png)
+- Nhìn chung thì các bản tin dùng để kiểm soát thông tin các device trong mạng lưới
+	- GetRequest: trả về OID cx như thông tin device (PDU type = 0)
+	- GetNextRequest: duyệt toàn bộ OID trong mạng lưới (do OID xếp không thứ tự nên phải duyệt mới biết cây device trong như nào ms có sơ đồ) (PDU type = 1)
+	- SetRequest: yêu cầu Agent chỉnh sửa thông tin (PDU type = 2)
+	- GetResponse: Agent return dạ vâng cho manager (PDU type = 3)
+	- Trap: không phải lúc nào cx trap, trap khác nhau tùy manufactoring
+		- Khác vs mấy cái trên, nó dùng cảnh báo, ko cần phản hồi trong khi kia là để quản lý thiết bị, ngoài ra agent cx có thể trap nhiều receiver 1 lúc
+		- Generic trap: 7 loại![](attachment/12d451b497cead2055de2ebb7e8c1768.png)
+		- Specific Trap: đặc thù do user tạo, chỉ hiểu được nếu receiver và sender đều hỗ trợ MIB đó
+- Bảo mật trong SNMP
+	- Community String: Là chuỗi ký tự giống nhau trên cả **manager** và **agent**, dùng để **xác thực** khi trao đổi dữ liệu (3 loại - bảng dưới). Nếu community string không khớp → agent sẽ **không trả lời**.
+	- View: Dù có `read-community`, agent vẫn có thể giới hạn quyền truy cập thông qua “view”. View là một tập con của MIB, chứa các OID cụ thể được phép truy cập. Mỗi view gắn với một community string.
+	- SNMP ACL (Access control list): hạn chế truy cập dựa trên IP (dù biết commun string)
+
+| Loại              | Mục đích                                          |
+| ----------------- | ------------------------------------------------- |
+| `Read-Community`  | Đọc dữ liệu (dùng cho GetRequest, GetNextRequest) |
+| `Write-Community` | Ghi/thay đổi dữ liệu (dùng cho SetRequest)        |
+| `Trap-Community`  | Xác thực trap gửi từ agent đến trap receiver      |
+
 # Thiết bị mạng
 ## Router 
 - Hoạt động ở tầng mạng (tầng 3 mô hình OSI)
@@ -57,9 +79,9 @@
 	- Inside
 		- **CPU**: như CPU của PC
 		- **ROM**: chứa chương trình kiểm tra khởi động
-		- **RAM/DRAM**: lưu trữ routing table, cache, buffering, mất khi shutdown/restart
-		- **FLASH**: lưu CISCO IOS để cho vào RAM (như ổ cứng lưu image OS)
-		- **NVRAM**: lưu trữ file cấu hình backup/startup của router (tắt router đi vx nhớ)
+		- **RAM/DRAM**: lưu trữ routing table, cache, buffering, mất khi shutdown/restart (running-config)
+		- **FLASH**: lưu CISCO IOS để cho vào RAM (như ổ cứng lưu image OS) (như SSD của PC)
+		- **NVRAM**: lưu trữ file cấu hình backup/startup của router (tắt router đi vx nhớ) (startup-config) (như HDD của PC)
 		- **Interface**: là nơi router kết nối với bên ngoài
 	- Outside: LAN, WAN, console/AUX
 - Cáp:
@@ -68,8 +90,125 @@
 	- Rollover: cấu hình Router
 - Cấu hình router
 	- User -> đặc quyền -> config
+```bash
+Router# setup                    # Vào chế độ cấu hình nhanh (Setup mode)
+Router> enable                  # Vào chế độ Privileged EXEC
+Router# configure terminal      # Vào chế độ cấu hình Global
+
+Router(config)# hostname MyRouter       # Đặt tên Router
+MyRouter(config)# enable password cisco # Cấu hình password enable (chưa mã hóa)
+MyRouter(config)# enable secret class   # Cấu hình password enable (mã hóa)
+MyRouter(config)# service password-encryption  # Mã hóa tất cả password
+
+# Cấu hình line console
+MyRouter(config)# line console 0
+MyRouter(config-line)# password console123
+MyRouter(config-line)# login
+MyRouter(config-line)# exit
+
+# Cấu hình line vty cho Telnet
+MyRouter(config)# line vty 0 4
+MyRouter(config-line)# password telnet123
+MyRouter(config-line)# login
+MyRouter(config-line)# exit
+
+# Cấu hình line auxiliary
+MyRouter(config)# line aux 0
+MyRouter(config-line)# password backdoor
+MyRouter(config-line)# login
+MyRouter(config-line)# exit
+
+# Cấu hình interface Serial 0/0/0
+MyRouter(config)# interface serial 0/0/0
+MyRouter(config-if)# description Link to ISP           # Mô tả interface (tuỳ chọn)
+MyRouter(config-if)# ip address 192.168.10.1 255.255.255.0  # Gán IP + subnet mask
+MyRouter(config-if)# clock rate 56000                  # Đặt clock rate nếu là DCE
+MyRouter(config-if)# no shutdown                         # Bật interface
+MyRouter(config-if)# exit
+
+# Cấu hình interface FastEthernet 0/0
+MyRouter(config)# interface fastethernet 0/0
+MyRouter(config-if)# description Accounting LAN
+MyRouter(config-if)# ip address 192.168.20.1 255.255.255.0
+MyRouter(config-if)# no shutdown
+MyRouter(config-if)# exit
+
+# Gán hostname cho IP (host mapping)
+MyRouter(config)# ip host lodon 172.16.1.3
+
+# Cấu hình định tuyến tĩnh
+MyRouter(config)# ip route 10.0.0.0 255.0.0.0 serial 0/0/0
+# Xóa định tuyến tĩnh
+MyRouter(config)# no ip route 10.0.0.0 255.0.0.0 serial 0/0/0
+
+# Hiển thị thông tin cơ bản
+MyRouter# show version          # Thông tin IOS
+MyRouter# show interfaces      # Trạng thái tất cả interface
+MyRouter# show ip interface brief  # Tóm tắt IP interfaces
+MyRouter# show clock            # Xem thời gian hiện tại
+
+# Lưu cấu hình vào NVRAM
+MyRouter# copy running-config startup-config
+
+```
 ## Switch
 - Một thiết bị mạng dùng để **kết nối nhiều thiết bị (máy tính, máy in, server...) trong cùng một mạng nội bộ (LAN)** và cho phép **truyền dữ liệu hiệu quả giữa chúng**.
+```bash
+! Tạo VLAN
+Switch# vlan database
+Switch(vlan)# vlan 10 name Sales
+Switch(vlan)# vlan 20 name Marketing
+Switch(vlan)# exit
+
+! Gán cổng vào VLAN
+Switch(config)# interface range fa0/1 - 5
+Switch(config-if-range)# switchport mode access
+Switch(config-if-range)# switchport access vlan 10
+Switch(config-if-range)# exit
+
+Switch(config)# interface fa0/6
+Switch(config-if)# switchport mode access
+Switch(config-if)# switchport access vlan 20
+Switch(config-if)# end
+
+! Kiểm tra VLAN
+Switch# show vlan brief
+Switch# show interface fa0/1 switchport
+
+! Cấu hình VTP Server
+Switch# vlan database
+Switch(vlan)# vtp server
+Switch(vlan)# vtp domain mydomain
+Switch(vlan)# exit
+
+! Cấu hình VTP Client
+Switch# vlan database
+Switch(vlan)# vtp client
+Switch(vlan)# vtp domain mydomain
+Switch(vlan)# exit
+
+! Cấu hình trunk port
+Switch(config)# interface fa0/24
+Switch(config-if)# switchport trunk encapsulation dot1q
+Switch(config-if)# switchport mode trunk
+Switch(config-if)# switchport trunk allowed vlan 10,20
+Switch(config-if)# end
+
+! Cấu hình Inter-VLAN Routing (Switch Layer 3)
+Switch(config)# ip routing
+
+! Hoặc Inter-VLAN Routing trên Router (Router-on-a-stick)
+Router(config)# interface fa0/0
+Router(config)# no shutdown
+Router(config)# interface fa0/0.10
+Router(config-subif)# encapsulation dot1q 10
+Router(config-subif)# ip address 192.168.10.1 255.255.255.0
+
+Router(config)# interface fa0/0.20
+Router(config-subif)# encapsulation dot1q 20
+Router(config-subif)# ip address 192.168.20.1 255.255.255.0
+
+```
 ## Định tuyến (Routing)
 - Chỉ đường cho các thiết bị làm sao cho quá trình đường đi là tối ưu nhất, phải có thông tin về mạng đích
 - **Routing table (RT)**: lưu thông tin về mạng đích đến và tối đường đi tối ưu
@@ -81,21 +220,14 @@
 		- Distance vector: chọn đường đi theo hướng và distance tới đích
 		- Link State: chọn shortest path dựa vào cấu trúc toàn bộ mạng theo trạng thái các đường link mạng 
 - **Vùng tự trị (Autonomous System - AS):** là internet nma chia thành các vùng nhỏ hơn, được nối với nhau bởi các Routers, thường sở hữu của 1 công ty hay nhà cung cấp dịch vụ internet, phải đăng kí với cơ quan quản trị để nhận AS của riêng
-- Khoảng cách tự trị (Administrative Distance - AD): Đánh giá độ tin cậy của thông tin nhận được từ router 
-	- Là một số nguyên từ 0-225: càng thấp càng đáng tin cậy
+- **Khoảng cách tự trị (Administrative Distance - AD):** Đánh giá độ tin cậy của thông tin nhận được từ router 
+	- Là một số nguyên từ 0-255: càng thấp càng đáng tin cậy
 		- 0 - max tin cậy
 		- 255 - không có lưu lượng qua tuyến này/không đc sử dụng để vận chuyển thông tin user
 ## LAB
 - Ping/Connect 2 máy tính dùng cùng 1 lớp (A to A - 10.x.x.x, B to B - 172.x.x.x, C to C - 192.x.x.x.x)
 - Muốn kết nối 2 pc thì cần phải có IP (cùng lớp như trên)
 - Default gateway: đưa resouce lên router để đến www
-# How to config (Router)
-```cmd
-router>en //enable router 
-
-```
-
-
 Server related
 - DHCP (Dynamic Host Config Protocol): quản lý IP nhanh chóng và tự động 
 	- Tự động set IP theo thứ tự (if set mode DHCP), nếu tắt máy -> chuyển IP đó sang máy khác 
@@ -138,7 +270,7 @@ Server related
 - **Distinguished Name (DN):** Tên duy nhất xác định một đối tượng trong AD.
 - Group account: đại diện 1 gr user, quản lý nhóm, phân bổ resource, chỉ dùng để quản lý, KHÔNG được log in
 	- Security Group: dùng cho security related work, chỉ định SID (security identifier), gửi email cho user trong group
-		- Distribution Group: không thể đi gán quyền, làm mấy việc ko phải của security, không có SID/ACL
+	- Distribution Group: không thể đi gán quyền, làm mấy việc ko phải của security, không có SID/ACL
 		![](attachment/d8793dc9eec827a46d81174ad8f00e58.png)
 - OU management: giảm công việc cho người quản trị = ủy quyền
 ## Policies 
@@ -151,13 +283,15 @@ Server related
 	- Triển khai nhiều cấp độ: Site, Domain, OU
 	- Auto hủy khi vứt bỏ, áp dụng thường xuyên hơn
 	- Cấu hình trên GPO (GP object): 2 loại local GPO (từng máy), non local GPO (lưu trên AD) (**gpedit.msc**)
+		- Starter GPO: template để tạo ra các GPO khác
 	- Thừa kế (local -> Site-> domain -> OU), có tính tích lũy, có thể force/cấm thừa kế
 	- Trong trường hợp ta có 2 GPO có nội dung là mâu thuẫn nhau, và được áp đặt trên 2 cấp độ khác nhau là Domain và OU. Thì, những người dùng trong những OU hiện hành sẽ chịu sự tác động của GPO đang áp đặt ở cấp độ thấp hơn (GPO áp đặt trên OU)
 ## Permission
 - Định nghĩa xem object có thể truy cập cái gì
 - 2 hệ thống kiểm soát user 
-	- Quyền chia sẻ (Share Permission): kiểm soát shared resource
-	- NTFS permission: kiểm soát trên hệ thống NTFS (cảm giác như định dạng đặc biệt để bảo mật cao, đòi người ngoài CŨNG PHẢI CÓ quyền NTFS mới truy cập đượcf)
+	- Quyền chia sẻ (Share Permission): kiểm soát shared resource (đơn giản nhất -> 3 mực độ read, change, full control)
+	- NTFS permission: kiểm soát trên hệ thống NTFS (cảm giác như định dạng đặc biệt để bảo mật cao, đòi người ngoài CŨNG PHẢI CÓ quyền NTFS mới truy cập được)
+	- Merge cả 2 quyền thì lấy quyền nhỏ hơn của nó 
 - Để truy cập đc 1 resource được chia sẻ thì phải có share per và phù hợp quyền NTFS
 - Window dùng ACL để kiểm soát tài nguyên, 1 ACL gồm nhiều ACE (AC entry)
 - Trong folder Properties: Sharing -> share per, Security -> NTFS
@@ -186,25 +320,27 @@ Server related
 		- **Xác định lỗ hổng**: xem khởi nguyên từ đâu: điểm nối internet, từ xa, tổ chức khác, truy cập vật lý, user, wifi -> cần xem thông tin có thể truy cập và mức độ access)
 		- **Ảnh hưởng của nó**: khó vì không rõ ràng, xét các hình thức phổ biến (DDoS, virus, ...), thời điểm tấn công, quy mô
 		- **Biện pháp**
+		- Xác định mức độ ảnh hưởng: 5 tiêu chí đánh giá (kết nối vật lý mà không ok thì cũng cao)
 ## Attack strategy (RISK)
 ### Scanning attack 
 - Chủ yêu để xem cấu hình của hệ thống -> planning
 - Scanning type:
-	- Port scanning: gửi 1 loạt thông điệp này rồi xem cổng nào đang mở -> check xem máy chủ đang dùng dịch vụ gì (Nmap - Network Mapper)
-	- Vulnerability scanning: quét lỗi nội bộ -> lỗ hổng từ server -> planning attack
-	- Network scanning: xác định các máy đang hoạt động trên hệ thống mạng
+	- **Port scanning**: gửi 1 loạt thông điệp này rồi xem cổng nào đang mở -> check xem máy chủ đang dùng dịch vụ gì (Nmap - Network Mapper)
+	- **Vulnerability scanning**: quét lỗi nội bộ -> lỗ hổng từ server -> planning attack
+	- **Network scanning**: xác định các máy đang hoạt động trên hệ thống mạng
+- **Ping Sweep**: scan ping request, if open, get in luôn (chống bằng FW để chặn ICMP)
 ### Spoofing Attack
 - Fake IP để quét hệ thống -> tránh phát hiện
-- Source routing: attacker chỉ định gói tin
+- **Source routing**: attacker chỉ định gói tin
 ### Hijacking Attack
 - Session: chiếm quyền server vs client -> steal cookie
 - Spoofing vs Hijack: 1 cái giả mạo qua mặt, 1 cái steal
 ### DoS
 - Dạng tấn công làm cho các hệ thống máy chủ, trang web bị tê liệt không thể đáp ứng lại các yêu cầu của người dùng
 - Type:
-	- Ping of death: Gửi các gói tin IP quá lớn → làm máy nạn nhân quá tải, dẫn đến từ chối dịch vụ
-	- LAND attack: Gửi gói tin có địa chỉ IP nguồn và đích giống nhau → gây vòng lặp xử lý, làm treo hệ thống.
-	- WinNuke: Tấn công vào **port 139** của Windows → gửi gói tin rác gây tràn bộ đệm
+	- **Ping of death**: Gửi các gói tin IP quá lớn → làm máy nạn nhân quá tải, dẫn đến từ chối dịch vụ
+	- **LAND attack**: Gửi gói tin có địa chỉ IP nguồn và đích giống nhau → gây vòng lặp xử lý, làm treo hệ thống.
+	- **WinNuke**: Tấn công vào **port 139** của Windows → gửi gói tin rác gây tràn bộ đệm
 - Vài công cụ tấn công:
 	- **CPU hog**: quá tải CPU của hệ thống
 	- **Bubonic**: Gửi gói **TCP có thông số ngẫu nhiên** → gây quá tải hoặc làm sập hệ thống.
@@ -233,18 +369,18 @@ Server related
 - Cài third party lên client để bú 
 ## Biện pháp bảo mật
 ### IDS
-- IDS (Intrusion Detection System): hệ thống giám sát lưu thông mạng
+- **IDS (Intrusion Detection System):** hệ thống giám sát lưu thông mạng
 	- Có thể phân biệt được threat nội, ngoại
 	- Detect các dấu hiệu bất thường hoặc lưu lượng mạng khác thường -> Threat
 	- Đảm bảo tính toàn vẹn dữ liệu, giữ bí mật thông tin, tạo riêng tư cho user, alert liên tục
 	- GIÁM SÁT (lưu lượng mạng và hành vi khả nghi) - CẢNH BÁO - BẢO VỆ (rollback về default config để ngăn chặn)
 	- Phân biệt được tấn công nội ngoại và phát hiện bất thường so vs default config
-- Network Base IDS (NIDS): cắm mắt (sensor) để giám sát mạng ở pin point
+- **Network Base IDS (NIDS):** cắm mắt (sensor) để giám sát mạng ở pin point
 	- So sánh các mẫu attack đã được train 
 	- Thường setup giữa mạng nội và ngoại để track lưu lượng
 	- Advantage: vô hình, giám sát được nhiều, phát hiện ở tầng network, ...
 	- Disadvantage: false positive, không phát hiện được data đã mã hóa, có độ trễ, cần update signature liên tục, ...
-- Host-based IDS (HIDS): cài trên máy chủ, theo dõi từ trong máy luôn, xem cái gì bị đổi từ đó so sánh các default để cảnh báo
+- **Host-based IDS (HIDS):** cài trên máy chủ, theo dõi từ trong máy luôn, xem cái gì bị đổi từ đó so sánh các default để cảnh báo
 ### Firewall
 - Các vùng mạng
 	- Local - LAN: máy trạm/chủ quản lý nội bộ
@@ -271,7 +407,7 @@ Server related
 	- Mô hình 3:
 		- Firewall ở cả 3 ranh giới: Internet ↔ DMZ, DMZ ↔ nội bộ, và nội bộ ↔ Internet.
 		- Mọi truy cập giữa các vùng đều được kiểm soát.
-- Firewall kiểm soát truy cập dựa trên các luật (rules).
+- Firewall kiểm soát truy cập dựa trên các luật (rules): chạy từ trên xuống
 	- Chiều gói tin (inbound/outbound)
 	- Giao thức (TCP/UDP)
 	- IP nguồn
